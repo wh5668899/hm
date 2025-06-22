@@ -2,6 +2,7 @@ import _ from "lodash";
 
 import Request from "@/lib/request/Request.ts";
 import { generateImages, getImageByHistoryId } from "@/api/controllers/images.ts";
+import { getAssetList } from "@/api/controllers/get_asset_list.ts";
 import { tokenSplit } from "@/api/controllers/core.ts";
 import util from "@/lib/util.ts";
 
@@ -63,6 +64,33 @@ export default {
         created: util.unixTimestamp(),
         data: result.images
       };
+    },
+
+    "/get_asset_list": async (request: Request) => {
+      request
+        .validate("headers.authorization", _.isString)
+        .validate("body.count", v => _.isUndefined(v) || _.isFinite(Number(v)))
+        .validate("body.direction", v => _.isUndefined(v) || _.isFinite(Number(v)))
+        .validate("body.mode", v => _.isUndefined(v) || _.isString(v))
+        .validate("body.option", v => _.isUndefined(v) || _.isObject(v))
+        .validate("body.asset_type_list", v => _.isUndefined(v) || _.isArray(v));
+
+      const tokens = tokenSplit(request.headers.authorization);
+      const token = _.sample(tokens);
+
+      const params = {
+        count: request.body.count ? Number(request.body.count) : undefined,
+        direction: request.body.direction ? Number(request.body.direction) : undefined,
+        mode: request.body.mode,
+        option: request.body.option,
+        asset_type_list: request.body.asset_type_list
+      };
+
+      const result = await getAssetList(token, params);
+      return {
+        created: util.unixTimestamp(),
+        data: result
+      };
     }
-  },
+  }
 };

@@ -5,7 +5,7 @@
       "moduleResolution": "NodeNext",
       "allowImportingTsExtensions": true,
       "allowSyntheticDefaultImports": true,
-      "noEmit": true,
+      "noEmit": false,
       "paths": {
         "@/*": ["src/*"]
       },

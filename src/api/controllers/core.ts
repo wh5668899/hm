@@ -70,28 +70,19 @@ export async function acquireToken(refreshToken: string): Promise<string> {
  * 生成cookie
  */
 export function generateCookie(refreshToken: string) {
-  const timestamp = util.unixTimestamp();
-  const sidGuard = `${refreshToken}%7C${timestamp}%7C5184000%7CMon%2C+03-Feb-2025+08%3A17%3A09+GMT`;
-  const sidUcpV1 = `1.0.0-${util.md5(util.uuid())}`;
-  const ttwid = `1|${util.md5(util.uuid())}|${timestamp}|${util.md5(util.uuid())}`;
-  
   return [
     `_tea_web_id=${WEB_ID}`,
     `is_staff_user=false`,
     `store-region=cn-gd`,
     `store-region-src=uid`,
-    `sid_guard=${sidGuard}`,
+    `sid_guard=${refreshToken}%7C${util.unixTimestamp()}%7C5184000%7CMon%2C+03-Feb-2025+08%3A17%3A09+GMT`,
     `uid_tt=${USER_ID}`,
     `uid_tt_ss=${USER_ID}`,
     `sid_tt=${refreshToken}`,
     `sessionid=${refreshToken}`,
     `sessionid_ss=${refreshToken}`,
-    `sid_ucp_v1=${sidUcpV1}`,
-    `ssid_ucp_v1=${sidUcpV1}`,
-    `ttwid=${ttwid}`,
-    `fpk1=${util.md5(util.uuid())}`,
-    `odin_tt=${util.md5(util.uuid())}`
-  ].join("; ");
+    `sid_tt=${refreshToken}`
+  ].join('; ');
 }
 
 /**
@@ -158,12 +149,6 @@ export async function request(
   const sign = util.md5(
     `9e2c|${uri.slice(-7)}|${PLATFORM_CODE}|${VERSION_CODE}|${deviceTime}||11ac`
   );
-  
-  const cookie = generateCookie(token);
-  const xWebSecsdkUid = util.uuid();
-  const sVWebId = `verify_${util.uuid()}`;
-  const passportCsrfToken = util.md5(util.uuid());
-  
   const response = await axios.request({
     method,
     url: `https://jimeng.jianying.com${uri}`,
@@ -176,20 +161,10 @@ export async function request(
     },
     headers: {
       ...FAKE_HEADERS,
-      Cookie: cookie,
+      Cookie: generateCookie(token),
       "Device-Time": deviceTime,
       Sign: sign,
       "Sign-Ver": "1",
-      "x-web-secsdk-uid": xWebSecsdkUid,
-      "s_v_web_id": sVWebId,
-      "passport_csrf_token": passportCsrfToken,
-      "passport_csrf_token_default": passportCsrfToken,
-      "n_mh": util.md5(util.uuid()),
-      "sid_ucp_v1": cookie.split("sid_ucp_v1=")[1]?.split(";")[0] || "",
-      "ssid_ucp_v1": cookie.split("ssid_ucp_v1=")[1]?.split(";")[0] || "",
-      "ttwid": cookie.split("ttwid=")[1]?.split(";")[0] || "",
-      "fpk1": cookie.split("fpk1=")[1]?.split(";")[0] || "",
-      "odin_tt": cookie.split("odin_tt=")[1]?.split(";")[0] || "",
       ...(options.headers || {}),
     },
     timeout: 15000,
@@ -275,7 +250,14 @@ export async function uploadFile(
  * @param result 结果
  */
 export function checkResult(result: AxiosResponse) {
+  if (!result.data) {
+    logger.info("Received empty response from server");
+    return null;
+  }
+  
   const { ret, errmsg, data } = result.data;
+  logger.info(`检查响应: ret=${ret}, errmsg=${errmsg}`);
+  
   if (!_.isFinite(Number(ret))) return result.data;
   if (ret === '0') return data;
   if (ret === '5000')
